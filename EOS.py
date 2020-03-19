@@ -12,10 +12,10 @@ def PR(composition,P_feed,T_feed,P_sep,T_sep):
     dfIn['MolFrac']= dfIn['Mol%']/(100)
     
     T = (T_sep-32)*5/9+273.15
-    P = P_sep/14.5038
+    P = (P_sep+14.73)/14.5038
 
     Tfeed = (T_feed-32)*5/9+273.15
-    Pfeed = P_feed/14.5038
+    Pfeed = (P_feed +14.73)/14.5038
     
     dew = Dew(dfIn,T)
     dewPoint = dew[0]*14.5038-14.73
@@ -96,24 +96,6 @@ def Flash(V,P,T,dfIn):
 
     return data
 
-def InputMolarVolume():
-    constants = Constants()
-    initialize = {'Component':['Hydrogen Sulfide', 'Nitrogen', 'Carbon Dioxide', 'Methane', 'Ethane', 'Propane', 'Isobutane', 'n-Butane', 'n-Pentane', 'n-Hexane', 'n-Heptane', 'n-Octane', 'n-Nonane', 'n-Decane', 'Benzene', 'Toluene', 'Xylenes', 'Cyclohexane']}
-    dfInit = pd.DataFrame(initialize)
-    dfInit['Xint'] = dfIn['MolFrac']
-    sumX = dfInit['Xint'].sum(axis = 0)
-    dfInit['X'] = dfInit['Xint']/sumX
-    dfInit['κ'] = 0.37464 + 1.54226*constants.df['accentricFac'] - 0.26992*constants.df['accentricFac'].pow(2)
-    dfInit['α'] = (1 + dfInit['κ'] * (1 - (Tfeed/constants.df['criticalTemp']).pow(0.5))).pow(2)
-    dfInit['a'] = 0.45724 * dfInit['α'] * (constants.R * constants.df['criticalTemp']).pow(2)/(constants.df['criticalPress'] * 100000)
-    dfInit['b'] = 0.07780 * constants.R * constants.df['criticalTemp'] / (constants.df['criticalPress'] * 100000)
-
-    mixtureL = mixture_function(dfInit['X'],dfInit,constants,Pfeed,Tfeed)
-
-    Z = cubic_solver_function(mixtureL['A'],mixtureL['B'])
-    ZL = min(Z)
-
-    return ZL
 
 def calculateK(K0,dfInit,constants,V,dfIn,P,T):
     def funct(V,*data):
