@@ -54,7 +54,7 @@ def PR(composition,P_feed,T_feed,P_sep,T_sep):
 def Dew(dfIn,T):
     constants = Constants()
     P1 = dfIn['MolFrac']*np.exp(np.log(constants.df['criticalPress']) + np.log(10)*(7/3)*(1 + constants.df['accentricFac'])*(1-constants.df['criticalTemp']/T))
-    P1 = P1.sum()
+    P1 = 1/P1.sum()
     guess = P1
  
     data = (dfIn, T)
