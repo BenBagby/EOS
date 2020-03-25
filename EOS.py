@@ -5,7 +5,7 @@ from scipy.optimize import fsolve
 import matplotlib.pyplot as plt
 from scipy import optimize
 import warnings
-warnings.filterwarnings('ignore', 'The iteration is not making good progress')
+#warnings.filterwarnings('ignore', 'The iteration is not making good progress')
 
 def PR(composition,P_feed,T_feed,P_sep,T_sep):
     dfIn = pd.DataFrame(composition)
@@ -17,18 +17,24 @@ def PR(composition,P_feed,T_feed,P_sep,T_sep):
     Tfeed = (T_feed-32)*5/9+273.15
     Pfeed = (P_feed +14.73)/14.5038
     
-    dew = Dew(dfIn,T)
+    dew = Dew(dfIn,Tfeed)
+    #print("dew",dew)
     dewPoint = dew[0]*14.5038-14.73
+    #print("dew point: ", dewPoint)
 
-    bubble = Bubble(dfIn,T)
+    bubble = Bubble(dfIn,Tfeed)
+    #print("bubble point: ",bubble)
     bubblePoint = bubble[0]*14.5038-14.73
+    #print("bubble point: ",bubblePoint)
 
     bubbledata = BubbleFunctionValues(Pfeed,dfIn,Tfeed)
     
     V = (bubble - P)/(bubble - dew)
+ 
+    #print("V guess", V)
 
     flash = Flash(V,P,T,dfIn)
-
+    #print(flash['V']) 
     #ZLfeed = InputMolarVolume()
     #print(ZLfeed)
 
@@ -41,12 +47,14 @@ def PR(composition,P_feed,T_feed,P_sep,T_sep):
 
     d = dict()
     dfres = pd.DataFrame(composition)
+    #p = dict()
     d['Bubble Point [psig]'] = bubblePoint
     d['Dew Point [psig]'] = dewPoint
-    d['Shrinkage'] = shrinkage[0]
-    d['GOR [SCF/BBL]'] = GOR[0]
+    d['Shrinkage'] = shrinkage
+    d['GOR [SCF/BBL]'] = GOR
     dfres['Liquid Composition'] = flash['X']*100
     dfres['Vapor Composition'] = flash['Y']*100
+    #d['Brent Convergence'] = flash['Newton Convergence']
 
     return d, dfres
 
@@ -101,15 +109,32 @@ def calculateK(K0,dfInit,constants,V,dfIn,P,T):
     def funct(V,*data):
         (dfIn['MolFrac'],K0) = data
         F = dfIn['MolFrac']*(K0-1)/(V*(K0-1)+1)
-        return F.sum()
-
+        if V>0:
+            return F.sum()
+        else:
+            return np.nan
+        
     def functPrime(V,*data):
         (dfIn['MolFrac'],K0) = data
         Fprime = -1*dfIn['MolFrac']*(K0-1).pow(2)/((V*(K0-1)+1)).pow(2)
-        return Fprime.sum()
+        if V>0:
+            return Fprime.sum()
+        else:
+            return np.nan
+
+    def fucnt2Prime(V,*data):
+        (dfIn['MolFrac'],K0) = data
+        F2prime = 2*dfIn['MolFrac']*(K0-1).pow(3)/((V*(K0-1)+1)).pow(3)
+        if V>0:
+            return F2prime.sum()
+        else:
+            return np.nan
 
     data = (dfIn['MolFrac'],K0)
-    root = optimize.newton(funct, V, fprime=functPrime, args = data)
+    #(root,rootRes) = optimize.newton(funct, V, fprime=functPrime, fprime2 = fucnt2Prime , args = data, disp = False, full_output = True)
+    #(root,rootRes) = optimize.newton(funct, V, fprime=functPrime, args = data, disp = False, full_output = True)
+    (root,rootRes) = optimize.brenth(funct, 0.01,1, args = data, disp = False, full_output = True)
+    #(root,rootRes) = optimize.newton(funct, V, args = data, disp = False, full_output = True)
 
     dfInit['Xint'] = dfIn['MolFrac']/(root*(K0-1)+1)
     sumX = dfInit['Xint'].sum(axis = 0)
@@ -142,6 +167,7 @@ def calculateK(K0,dfInit,constants,V,dfIn,P,T):
 
     K = phiL/phiV
     d = dict()
+    d['Newton Convergence'] = rootRes.converged
     d['K'] = K
     d['X'] = dfInit['X']
     d['Y'] = dfInit['Y']
